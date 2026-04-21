@@ -1,0 +1,13 @@
+name: job-metrics-exporter
+type: platform-app
+active: false
+status: community
+compatibility:
+  - platform
+description: Exporter for job metrics
+tags:
+  - app
+maintainer:
+  - Nick-Andreano < @Nick-Andreano
+repo: https://github.com/itential/job-metrics-exporter
+docs: https://github.com/itential/job-metrics-exporter/blob/main/README.md
