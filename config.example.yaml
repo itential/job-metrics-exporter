@@ -1,0 +1,53 @@
+mongo:
+  # Option A: Full connection string (recommended for replica sets).
+  # uri: "mongodb://prometheus:changeme@mongo01:27017,mongo02:27017,mongo03:27017/itential?replicaSet=rs0&authSource=admin"
+
+  # Option B: Individual parameters (used when uri is not set).
+  host: "pe-iap01"
+  port: 27017
+  username: "prometheus"
+  password: "changeme"
+  database: "itential"
+  auth_source: "admin"
+
+  tls:
+    enabled: false
+    ca_file: "/etc/itential-job-metrics-exporter/ca.pem"
+    insecure_skip_verify: false
+
+exporter:
+  listen_address: ":9477"
+  metrics_path: "/metrics"
+  # Timeout for the one-time bootstrap poll run at startup when change_stream
+  # is enabled. Should be long enough for a full status scan of your collections.
+  # Defaults to 4m. Configurable via ITENTIAL_JOB_METRIC_SLOW_QUERY_TIMEOUT.
+  slow_query_timeout: "4m"
+  tls:
+    enabled: false
+    cert_file: "/etc/itential-job-metrics-exporter/server.crt"
+    key_file:  "/etc/itential-job-metrics-exporter/server.key"
+
+log:
+  level: "info"   # debug | info | warn | error
+  format: "json"  # json | text
+
+# Real-time change stream counters.
+# Requires MongoDB to be running as a replica set.
+# When enabled, a one-time bootstrap poll seeds the initial status gauge
+# values, then the change stream maintains them via ±1 deltas — no recurring
+# full collection scans needed after startup.
+change_stream:
+  enabled: false
+  # Load active document states on startup so transitions from pre-existing
+  # documents are correctly attributed to their previous status.
+  initial_load: true
+  # Deadline for the initial load projection queries.
+  initial_load_timeout: "2m"
+
+# Background aggregation queries for status count snapshots.
+# Use this when change_stream is not available (MongoDB not on a replica set).
+# If change_stream.enabled is true, polling is not started.
+polling:
+  enabled: false
+  interval: "60s"
+  query_timeout: "55s"   # must be less than interval

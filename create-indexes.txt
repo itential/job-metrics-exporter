@@ -1,0 +1,17 @@
+// MongoDB index creation commands for itential-job-metrics-exporter
+// Run against the `itential` database (or whichever database is configured via ITENTIAL_JOB_METRIC_MONGO_DATABASE)
+//
+// All polling queries set an explicit index hint and will error rather than fall back
+// to a collection scan if these indexes are missing.
+
+// jobs collection — covered index scan on status, no document fetch required
+db.jobs.createIndex(
+  { status: 1, _id: 1 },
+  { name: "itential_status", background: true }
+)
+
+// tasks collection — used by all task status, per-server, and duration queries
+db.tasks.createIndex(
+  { status: 1, "metrics.server_id": 1 },
+  { name: "itential_job_metrics_exporter_task_status_server", background: true }
+)

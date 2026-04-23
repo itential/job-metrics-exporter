@@ -1,0 +1,86 @@
+# itential-job-metrics-exporter.service.sample
+#
+# Sample systemd unit file for itential-job-metrics-exporter.
+# Copy to /etc/systemd/system/itential-job-metrics-exporter.service, then:
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now itential-job-metrics-exporter
+#
+# View logs:
+#   journalctl -u itential-job-metrics-exporter -f
+
+[Unit]
+Description=Itential Job Metrics Prometheus Exporter
+Documentation=https://github.com/itential/job-metrics-exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+
+# Path to the installed binary and config file.
+# Use --listen-address or --database to override specific config values
+# without editing the config file.
+ExecStart=/usr/local/bin/itential-job-metrics-exporter \
+    --config /etc/itential-job-metrics-exporter/config.yaml
+
+# Restart on failure. StartLimitBurst caps restarts to 5 attempts per
+# StartLimitIntervalSec window to avoid hammering MongoDB during an outage.
+Restart=on-failure
+RestartSec=10s
+StartLimitIntervalSec=120s
+StartLimitBurst=5
+
+# Logging — all output goes to journald.
+# View with: journalctl -u itential-job-metrics-exporter -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=itential-job-metrics-exporter
+
+# Optional: inject secrets (e.g. ITENTIAL_JOB_METRIC_MONGO_PASSWORD) from a file
+# instead of storing them in config.yaml. The leading '-' means systemd
+# will not fail if the file is absent.
+#
+# Create the file:
+#   echo 'ITENTIAL_JOB_METRIC_MONGO_PASSWORD=secret' > /etc/itential-job-metrics-exporter/env
+#   chmod 600 /etc/itential-job-metrics-exporter/env
+#   chown prometheus:prometheus /etc/itential-job-metrics-exporter/env
+#
+#EnvironmentFile=-/etc/itential-job-metrics-exporter/env
+
+# Optional: set individual environment variables inline.
+# These override values from both the config file and EnvironmentFile.
+#
+#Environment=ITENTIAL_JOB_METRIC_LOG_LEVEL=debug
+#Environment=ITENTIAL_JOB_METRIC_CHANGE_STREAM_ENABLED=true
+#Environment=ITENTIAL_JOB_METRIC_POLLING_ENABLED=true
+#Environment=ITENTIAL_JOB_METRIC_POLLING_INTERVAL=60s
+
+# Optional: resource limits.
+# Uncomment and tune if you need to constrain CPU or memory on the host.
+#
+#MemoryMax=256M
+#CPUQuota=20%
+
+# Security hardening — these are safe for a stateless HTTP server process
+# that only needs outbound TCP to MongoDB and inbound TCP for scrapes.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadOnlyPaths=/etc/itential-job-metrics-exporter
+
+[Install]
+WantedBy=multi-user.target
