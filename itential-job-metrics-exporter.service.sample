@@ -17,8 +17,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=prometheus
-Group=prometheus
+User=itential
+Group=itential
 
 # Path to the installed binary and config file.
 # Use --listen-address or --database to override specific config values
