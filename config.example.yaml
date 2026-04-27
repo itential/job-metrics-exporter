@@ -1,13 +1,13 @@
 mongo:
   # Option A: Full connection string (recommended for replica sets).
-  # uri: "mongodb://prometheus:changeme@mongo01:27017,mongo02:27017,mongo03:27017/itential?replicaSet=rs0&authSource=admin"
+  # uri: "mongodb://prometheus:<password>@<hostname-1>:27017,<hostname-2>:27017,<hostname-3>:27017/<database>?replicaSet=rs0&authSource=admin"
 
   # Option B: Individual parameters (used when uri is not set).
-  host: "pe-iap01"
+  host: "<hostname>"
   port: 27017
   username: "prometheus"
-  password: "changeme"
-  database: "itential"
+  password: "<password>"
+  database: "<database>"
   auth_source: "admin"
 
   tls:

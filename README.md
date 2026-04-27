@@ -105,7 +105,7 @@ Status values are discovered dynamically from MongoDB — no configuration is ne
 use admin
 db.createUser({
   user: "prometheus",
-  pwd: "changeme",
+  pwd: "<password>",
   roles: [
     { role: "read", db: "itential" }
   ]
@@ -116,7 +116,7 @@ The `read` role grants `changeStream` access on MongoDB 4.0+. No additional gran
 
 ### Index Requirements
 
-The background polling queries (and change stream bootstrap) require the following indexes. See `create-indexes.txt` for creation commands.
+The background polling queries (and change stream bootstrap) require the following indexes.
 
 | Query | Collection | Index Name | Index Keys |
 |---|---|---|---|
@@ -124,6 +124,24 @@ The background polling queries (and change stream bootstrap) require the followi
 | `TasksByStatus` | `tasks` | `itential_job_metrics_exporter_task_status_server` | `{status: 1, metrics.server_id: 1}` |
 
 All aggregations set an explicit index hint and will return an error rather than fall back to a collection scan if the expected index is missing.
+
+Run these against the `itential` database (or whichever database is configured via `ITENTIAL_JOB_METRIC_MONGO_DATABASE`):
+
+```javascript
+// jobs collection — covered index scan on status, no document fetch required
+// Note: itential_status is typically created by the Itential platform application
+// and may already exist in your environment.
+db.jobs.createIndex(
+  { status: 1, _id: 1 },
+  { name: "itential_status", background: true }
+)
+
+// tasks collection — used by all task status, per-server, and duration queries
+db.tasks.createIndex(
+  { status: 1, "metrics.server_id": 1 },
+  { name: "itential_job_metrics_exporter_task_status_server", background: true }
+)
+```
 
 ---
 
@@ -175,7 +193,7 @@ The exporter can be configured entirely via environment variables — no config 
 
 ```bash
 docker run --rm \
-  -e ITENTIAL_JOB_METRIC_MONGO_URI="mongodb://prometheus:changeme@mongo01:27017/itential?replicaSet=rs0&authSource=admin" \
+  -e ITENTIAL_JOB_METRIC_MONGO_URI="mongodb://prometheus:<password>@<hostname>:27017/itential?replicaSet=rs0&authSource=admin" \
   -e ITENTIAL_JOB_METRIC_CHANGE_STREAM_ENABLED=true \
   -p 9477:9477 \
   ghcr.io/itential/job-metrics-exporter:latest
@@ -221,13 +239,13 @@ Configuration precedence (highest to lowest):
 ```yaml
 mongo:
   # Option A: Full connection string (recommended for replica sets).
-  uri: "mongodb://prometheus:changeme@mongo01:27017,mongo02:27017,mongo03:27017/itential?replicaSet=rs0&authSource=admin"
+  uri: "mongodb://prometheus:<password>@<hostname-1>:27017,<hostname-2>:27017,<hostname-3>:27017/itential?replicaSet=rs0&authSource=admin"
 
   # Option B: Individual parameters (used when uri is not set).
   # host: "localhost"
   # port: 27017
   # username: "prometheus"
-  # password: "changeme"
+  # password: "<password>"
   # database: "itential"
   # auth_source: "admin"
 
@@ -367,7 +385,7 @@ scrape_configs:
     scrape_timeout: 10s
     static_configs:
       - targets:
-          - "pe-iap01:9477"
+          - "<hostname>:9477"
 ```
 
 ### With TLS (HTTPS)
@@ -382,7 +400,7 @@ scrape_configs:
       ca_file: /etc/prometheus/ca.pem
     static_configs:
       - targets:
-          - "pe-iap01:9477"
+          - "<hostname>:9477"
 ```
 
 ---
@@ -604,7 +622,7 @@ Verify the user has the `read` role and it has replicated:
 ```javascript
 // Run on each secondary
 use itential
-db.auth("prometheus", "changeme")
+db.auth("prometheus", "<password>")
 db.tasks.countDocuments({}, { limit: 1 })
 ```
 
