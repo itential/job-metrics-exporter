@@ -49,14 +49,9 @@ with project-specific requirements and commands for your tech stack.
 
 ### Prerequisites
 
-<!-- List your project's prerequisites here. Examples:
-- Python 3.10+ with uv package manager
-- Node.js 18+ with npm/yarn
-- Go 1.21+
-- Rust 1.70+ with cargo
--->
-
-- Git
+- Go 1.22 or later
+- GNU Make
+- [golangci-lint](https://golangci-lint.run/usage/install/) (for linting)
 
 ### Setup Instructions
 
@@ -73,22 +68,13 @@ with project-specific requirements and commands for your tech stack.
 
 3. **Set up the development environment:**
    ```bash
-   # Add your setup commands here
-   # Examples:
-   # - Python: uv sync --all-extras --dev
-   # - Node.js: npm install
-   # - Go: go mod download
-   # - Rust: cargo build
+   go mod download
+   make hooks
    ```
 
 4. **Verify the setup:**
    ```bash
-   # Add your verification commands here
-   # Examples:
-   # - Python: make test && make lint
-   # - Node.js: npm test && npm run lint
-   # - Go: go test ./... && golangci-lint run
-   # - Rust: cargo test && cargo clippy
+   make test && make lint
    ```
 
 ## Contributing Process
@@ -119,6 +105,7 @@ This project uses a fork and pull request model for contributions:
 Use descriptive branch names with prefixes:
 - `feature/` - New features
 - `fix/` - Bug fixes
+- `refactor/` - Refactoring with no functional change
 - `chore/` - Maintenance tasks
 - `docs/` - Documentation updates
 
@@ -207,37 +194,24 @@ Examples for common tech stacks are provided as comments.
 ### Running Tests
 
 ```bash
-# Add your test commands here
-# Examples:
-# - Python: make test, pytest, uv run pytest
-# - JavaScript: npm test, yarn test
-# - Go: go test ./..., make test
-# - Rust: cargo test
+make test
+# or
+go test -v -race ./...
 ```
 
 ### Test Coverage
 
 ```bash
-# Add your coverage commands here
-# Examples:
-# - Python: make coverage, pytest --cov
-# - JavaScript: npm run coverage, nyc npm test
-# - Go: go test -cover ./...
-# - Rust: cargo tarpaulin
+go test -cover ./...
 ```
 
 ### Writing Tests
 
-- Place tests in the appropriate directory for your language/framework
+- Place test files alongside the package they test (same directory, `_test.go` suffix)
+- No external services required — all tests are pure unit tests
+- Use raw BSON payloads for watcher tests (see `internal/watcher/`)
 - Use descriptive test names that explain the expected behavior
 - Include both positive and negative test cases
-- Mock external dependencies appropriately
-- Aim for meaningful coverage of critical paths
-
-<!--
-MAINTAINER: Add project-specific test structure and conventions here.
-Example: "Place tests in `tests/` directory mirroring `src/` structure"
--->
 
 ## Code Style
 
@@ -249,54 +223,23 @@ Examples for common tech stacks are provided as comments.
 ### Code Quality Commands
 
 ```bash
-# Add your linting/formatting commands here
-# Examples:
-# - Python: make lint, ruff check ., black --check .
-# - JavaScript: npm run lint, eslint ., prettier --check .
-# - Go: golangci-lint run, go fmt ./...
-# - Rust: cargo clippy, cargo fmt --check
+make lint
+# or
+golangci-lint run ./...
+go fmt ./...
 ```
 
 ### Style Guidelines
 
-<!--
-MAINTAINER: Add your project's style guidelines here. Examples:
-
-Python:
-- Follow PEP 8 conventions
-- Use type hints for all function parameters and return values
-- Keep line length to 88 characters (Black default)
-
-JavaScript/TypeScript:
-- Follow ESLint recommended rules
-- Use TypeScript strict mode
-- Prefer const over let, avoid var
-
-Go:
-- Follow Effective Go guidelines
-- Use gofmt for formatting
-- Keep functions focused and small
-
-Rust:
-- Follow Rust API Guidelines
-- Use clippy lints
-- Prefer Result over panics
--->
-
-- Use meaningful variable and function names
+- Follow [Effective Go](https://go.dev/doc/effective_go) guidelines
+- Use `gofmt` for formatting (enforced by `make lint`)
 - Keep functions focused and single-purpose
-- Write self-documenting code where possible
+- Use meaningful variable and function names
 
 ### Documentation Standards
 
-- Document public APIs and exported functions
-- Include usage examples for complex functionality
+- Document exported types and functions with Go doc comments
 - Keep documentation up-to-date with code changes
-
-<!--
-MAINTAINER: Add project-specific documentation conventions here.
-Example: "Use Google-style docstrings with Args, Returns, and Raises sections"
--->
 
 ## Documentation
 
