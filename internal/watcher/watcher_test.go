@@ -11,7 +11,7 @@ import (
 )
 
 func newTestWatcher(rec *mockRecorder) *Watcher {
-	return New(nil, rec, config.ChangeStreamConfig{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return New(nil, rec, nil, config.ChangeStreamConfig{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 func marshalEvent(t *testing.T, doc bson.D) bson.Raw {

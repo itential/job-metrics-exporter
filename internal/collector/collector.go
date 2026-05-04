@@ -14,13 +14,21 @@
 package collector
 
 import (
+	"context"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const namespace = "itential"
+
+// HealthRecorder is called by the watcher and poller to record exporter-internal
+// health events. It is implemented by Collector.
+type HealthRecorder interface {
+	RecordWatcherReconnect(collection string)
+}
 
 // EventRecorder is called by the change stream watcher to record lifecycle
 // events. It is implemented by Collector.
@@ -59,30 +67,44 @@ type Collector struct {
 	jobStatusCounts  map[string]int64
 	taskStatusCounts map[string]int64
 
+	// health counters — initialized to zero for known keys so they appear in
+	// output from the first scrape even before any event occurs.
+	watcherReconnects map[string]int64
+	pollErrors        map[string]int64
+
+	ping   func(context.Context) error
 	logger *slog.Logger
 
-	jobStartDesc     *prometheus.Desc
-	jobCompleteDesc  *prometheus.Desc
-	jobErrorDesc     *prometheus.Desc
-	taskStartDesc    *prometheus.Desc
-	taskCompleteDesc *prometheus.Desc
-	taskErrorDesc    *prometheus.Desc
-	taskCancelDesc   *prometheus.Desc
-	jobCancelDesc    *prometheus.Desc
-	jobStatusDesc    *prometheus.Desc
-	taskStatusDesc   *prometheus.Desc
+	jobStartDesc         *prometheus.Desc
+	jobCompleteDesc      *prometheus.Desc
+	jobErrorDesc         *prometheus.Desc
+	taskStartDesc        *prometheus.Desc
+	taskCompleteDesc     *prometheus.Desc
+	taskErrorDesc        *prometheus.Desc
+	taskCancelDesc       *prometheus.Desc
+	jobCancelDesc        *prometheus.Desc
+	jobStatusDesc        *prometheus.Desc
+	taskStatusDesc       *prometheus.Desc
+	upDesc               *prometheus.Desc
+	scrapeDurationDesc   *prometheus.Desc
+	watcherReconnectDesc *prometheus.Desc
+	pollErrorDesc        *prometheus.Desc
 }
 
-// New creates a Collector.
-func New(logger *slog.Logger) *Collector {
+// New creates a Collector. ping is called on every scrape to determine
+// itential_up; pass nil to disable the ping (up will always be 1).
+func New(ping func(context.Context) error, logger *slog.Logger) *Collector {
 	return &Collector{
-		logger:           logger,
-		taskStarts:       make(map[string]int64),
-		taskCompletes:    make(map[string]int64),
-		taskErrors:       make(map[string]int64),
-		taskCancels:      make(map[string]int64),
-		jobStatusCounts:  make(map[string]int64),
-		taskStatusCounts: make(map[string]int64),
+		ping:              ping,
+		logger:            logger,
+		taskStarts:        make(map[string]int64),
+		taskCompletes:     make(map[string]int64),
+		taskErrors:        make(map[string]int64),
+		taskCancels:       make(map[string]int64),
+		jobStatusCounts:   make(map[string]int64),
+		taskStatusCounts:  make(map[string]int64),
+		watcherReconnects: map[string]int64{"jobs": 0, "tasks": 0},
+		pollErrors:        map[string]int64{"jobs": 0, "tasks": 0},
 		jobStartDesc: prometheus.NewDesc(
 			namespace+"_job_start",
 			"Number of jobs started (inserted) in the current collection window.",
@@ -132,6 +154,26 @@ func New(logger *slog.Logger) *Collector {
 			namespace+"_task_status_total",
 			"Current number of tasks per status (snapshot from background query).",
 			[]string{"status"}, nil,
+		),
+		upDesc: prometheus.NewDesc(
+			namespace+"_up",
+			"1 if the exporter can reach MongoDB, 0 otherwise.",
+			nil, nil,
+		),
+		scrapeDurationDesc: prometheus.NewDesc(
+			namespace+"_scrape_duration_seconds",
+			"Duration of the last metrics scrape in seconds.",
+			nil, nil,
+		),
+		watcherReconnectDesc: prometheus.NewDesc(
+			namespace+"_watcher_reconnects_total",
+			"Total number of change stream reconnects per collection.",
+			[]string{"collection"}, nil,
+		),
+		pollErrorDesc: prometheus.NewDesc(
+			namespace+"_poll_errors_total",
+			"Total number of background poll query errors per query type.",
+			[]string{"query"}, nil,
 		),
 	}
 }
@@ -232,6 +274,20 @@ func (c *Collector) RecordTaskCancel(serverID string) {
 	c.mu.Unlock()
 }
 
+// RecordWatcherReconnect increments the reconnect counter for the given collection.
+func (c *Collector) RecordWatcherReconnect(collection string) {
+	c.mu.Lock()
+	c.watcherReconnects[collection]++
+	c.mu.Unlock()
+}
+
+// RecordPollError increments the poll error counter for the given query type.
+func (c *Collector) RecordPollError(query string) {
+	c.mu.Lock()
+	c.pollErrors[query]++
+	c.mu.Unlock()
+}
+
 // Describe implements prometheus.Collector.
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.jobStartDesc
@@ -244,11 +300,27 @@ func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.taskCancelDesc
 	ch <- c.jobStatusDesc
 	ch <- c.taskStatusDesc
+	ch <- c.upDesc
+	ch <- c.scrapeDurationDesc
+	ch <- c.watcherReconnectDesc
+	ch <- c.pollErrorDesc
 }
 
 // Collect implements prometheus.Collector. It snapshots the current counters
 // and cached query results without blocking the change stream watcher or poller.
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
+	start := time.Now()
+
+	up := float64(1)
+	if c.ping != nil {
+		pingCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		if err := c.ping(pingCtx); err != nil {
+			up = 0
+			c.logger.Warn("MongoDB ping failed during scrape", "err", err)
+		}
+		cancel()
+	}
+
 	c.mu.Lock()
 	js, jc, je, jcanc := c.jobStarts, c.jobCompletes, c.jobErrors, c.jobCancels
 	ts := make(map[string]int64, len(c.taskStarts))
@@ -275,7 +347,25 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	for k, v := range c.taskStatusCounts {
 		tsc[k] = v
 	}
+	wr := make(map[string]int64, len(c.watcherReconnects))
+	for k, v := range c.watcherReconnects {
+		wr[k] = v
+	}
+	pe := make(map[string]int64, len(c.pollErrors))
+	for k, v := range c.pollErrors {
+		pe[k] = v
+	}
 	c.mu.Unlock()
+
+	duration := time.Since(start).Seconds()
+	ch <- prometheus.MustNewConstMetric(c.upDesc, prometheus.GaugeValue, up)
+	ch <- prometheus.MustNewConstMetric(c.scrapeDurationDesc, prometheus.GaugeValue, duration)
+	for collection, count := range wr {
+		ch <- prometheus.MustNewConstMetric(c.watcherReconnectDesc, prometheus.CounterValue, float64(count), collection)
+	}
+	for query, count := range pe {
+		ch <- prometheus.MustNewConstMetric(c.pollErrorDesc, prometheus.CounterValue, float64(count), query)
+	}
 
 	ch <- prometheus.MustNewConstMetric(c.jobStartDesc, prometheus.CounterValue, float64(js))
 	ch <- prometheus.MustNewConstMetric(c.jobCompleteDesc, prometheus.CounterValue, float64(jc))
