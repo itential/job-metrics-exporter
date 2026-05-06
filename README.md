@@ -80,6 +80,19 @@ Point-in-time snapshots of document counts per status. Updated in real-time when
 
 Status values are discovered dynamically from MongoDB — no configuration is needed when new status values appear.
 
+### Exporter Health
+
+These metrics are always emitted, starting at 0, regardless of which collection mode is active. They are ready for alerting from the first scrape.
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `itential_up` | Gauge | — | `1` if the exporter can reach MongoDB, `0` if the ping fails |
+| `itential_scrape_duration_seconds` | Gauge | — | Duration of the last scrape in seconds, including the MongoDB ping |
+| `itential_watcher_reconnects_total` | Counter | `collection` | Change stream reconnects per collection (`jobs` / `tasks`) |
+| `itential_poll_errors_total` | Counter | `query` | Background poll query failures per query type (`jobs` / `tasks`) |
+
+`itential_up` uses a 3-second timeout on each Prometheus scrape. `/healthz` is a separate liveness endpoint that does **not** ping MongoDB.
+
 ---
 
 ## Requirements
@@ -493,6 +506,30 @@ deriv(itential_task_status_total{status="error"}[10m])
     severity: warning
   annotations:
     summary: "IAP tasks are being canceled on worker {{ $labels.server_id }}"
+
+- alert: ItentialJobMetricDown
+  expr: itential_up == 0
+  for: 2m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Itential job metrics exporter cannot reach MongoDB"
+
+- alert: ItentialJobMetricChangeStreamReconnecting
+  expr: increase(itential_watcher_reconnects_total[15m]) > 3
+  for: 0m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Change stream on {{ $labels.collection }} has reconnected more than 3 times in 15 minutes"
+
+- alert: ItentialJobMetricPollErrors
+  expr: increase(itential_poll_errors_total[5m]) > 0
+  for: 0m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Background poll query for {{ $labels.query }} is failing"
 ```
 
 ---
@@ -504,7 +541,8 @@ make build                  # Build for current OS/arch → dist/
 make test                   # Run all tests with race detector
 make lint                   # Run golangci-lint
 make release-linux-amd64    # Cross-compile for Linux x86_64
-make release-all            # Build all platforms
+make release-all            # Build linux/amd64 + linux/arm64 (CI release target)
+make release-darwin-arm64   # Build for macOS Apple Silicon (local testing only)
 ```
 
 ### Testing
@@ -527,7 +565,7 @@ go test ./internal/... -run TestFunctionName
 | Package | What is tested |
 |---|---|
 | `internal/config` | YAML loading, env var overrides and precedence, all startup validation rules |
-| `internal/collector` | Counter and gauge correctness, zero-defaulting for unseen servers, concurrent write safety |
+| `internal/collector` | Counter and gauge correctness, zero-defaulting for unseen servers, health metrics (`itential_up`, scrape duration, reconnects, poll errors), concurrent write safety |
 | `internal/watcher` | Every job and task event type (insert, update, replace, cancel) using raw BSON payloads and a mock `EventRecorder` |
 
 ---

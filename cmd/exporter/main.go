@@ -76,7 +76,9 @@ func main() {
 
 	db := mongoClient.Database(cfg.Mongo.Database)
 
-	coll := collector.New(logger)
+	coll := collector.New(func(ctx context.Context) error {
+		return mongoClient.Ping(ctx, nil)
+	}, logger)
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(coll)
@@ -94,7 +96,7 @@ func main() {
 		pollOnce(bootstrapCtx, runner, coll, cfg.Exporter.SlowQueryTimeout, logger)
 		bootstrapCancel()
 
-		w := watcher.New(db, coll, cfg.ChangeStream, logger)
+		w := watcher.New(db, coll, coll, cfg.ChangeStream, logger)
 		go w.Start(ctx)
 	} else if cfg.Polling.Enabled {
 		// Change stream is off: fall back to periodic polling for status gauges.
@@ -191,6 +193,7 @@ func pollOnce(ctx context.Context, runner *queries.Runner, coll *collector.Colle
 	jobDur := time.Since(start)
 	if err != nil {
 		logger.Warn("job status query failed", "err", err, "duration_ms", jobDur.Milliseconds())
+		coll.RecordPollError("jobs")
 	} else {
 		m := make(map[string]int64, len(jobCounts))
 		for _, sc := range jobCounts {
@@ -208,6 +211,7 @@ func pollOnce(ctx context.Context, runner *queries.Runner, coll *collector.Colle
 	taskDur := time.Since(start)
 	if err != nil {
 		logger.Warn("task status query failed", "err", err, "duration_ms", taskDur.Milliseconds())
+		coll.RecordPollError("tasks")
 	} else {
 		m := make(map[string]int64, len(taskCounts))
 		for _, sc := range taskCounts {

@@ -54,6 +54,7 @@ func isTerminal(status string) bool {
 type Watcher struct {
 	db       *mongo.Database
 	recorder collector.EventRecorder
+	health   collector.HealthRecorder
 	logger   *slog.Logger
 	cfg      config.ChangeStreamConfig
 
@@ -69,10 +70,12 @@ type Watcher struct {
 }
 
 // New creates a Watcher. Call Start to begin watching.
-func New(db *mongo.Database, recorder collector.EventRecorder, cfg config.ChangeStreamConfig, logger *slog.Logger) *Watcher {
+// health may be nil, in which case reconnect events are not recorded.
+func New(db *mongo.Database, recorder collector.EventRecorder, health collector.HealthRecorder, cfg config.ChangeStreamConfig, logger *slog.Logger) *Watcher {
 	return &Watcher{
 		db:            db,
 		recorder:      recorder,
+		health:        health,
 		logger:        logger.With("component", "watcher"),
 		cfg:           cfg,
 		jobStatusMap:  make(map[string]string),
@@ -127,6 +130,9 @@ func (w *Watcher) watchWithRetry(ctx context.Context, name string, fn func(conte
 		}
 		if err != nil {
 			w.logger.Warn("change stream error, will retry", "collection", name, "err", err, "backoff", backoff)
+			if w.health != nil {
+				w.health.RecordWatcherReconnect(name)
+			}
 			backoff = min(backoff*2, 60*time.Second)
 		} else {
 			w.logger.Info("change stream closed cleanly, reopening", "collection", name)
