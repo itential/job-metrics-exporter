@@ -49,8 +49,8 @@ release-darwin-arm64: deps
 		-o $(BUILD_DIR)/$(BINARY)-darwin-arm64 ./cmd/exporter
 	@echo "Built $(BUILD_DIR)/$(BINARY)-darwin-arm64"
 
-# Build all targets at once
-release-all: release-linux-amd64 release-linux-arm64 release-darwin-amd64 release-darwin-arm64
+# Build all release targets (linux only — darwin targets are available locally via release-darwin-*)
+release-all: release-linux-amd64 release-linux-arm64
 	@echo "All targets built in $(BUILD_DIR)/"
 
 test:
