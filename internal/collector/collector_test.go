@@ -14,7 +14,7 @@ import (
 )
 
 func newTestCollector() *Collector {
-	return New(func(context.Context) error { return nil }, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return New("test", func(context.Context) error { return nil }, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 func TestJobCounters(t *testing.T) {
@@ -277,7 +277,7 @@ itential_up 1
 }
 
 func TestHealthUp_Failure(t *testing.T) {
-	c := New(func(context.Context) error { return errors.New("connection refused") },
+	c := New("test", func(context.Context) error { return errors.New("connection refused") },
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	expected := `
 # HELP itential_up 1 if the exporter can reach MongoDB, 0 otherwise.

@@ -76,7 +76,7 @@ func main() {
 
 	db := mongoClient.Database(cfg.Mongo.Database)
 
-	coll := collector.New(func(ctx context.Context) error {
+	coll := collector.New(version, func(ctx context.Context) error {
 		return mongoClient.Ping(ctx, nil)
 	}, logger)
 
