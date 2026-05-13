@@ -52,6 +52,7 @@ type EventRecorder interface {
 // Collector counts job and task lifecycle events and exposes them as Prometheus
 // counters. All fields are protected by mu.
 type Collector struct {
+	version       string
 	mu            sync.Mutex
 	jobStarts     int64
 	jobCompletes  int64
@@ -75,6 +76,7 @@ type Collector struct {
 	ping   func(context.Context) error
 	logger *slog.Logger
 
+	buildInfoDesc        *prometheus.Desc
 	jobStartDesc         *prometheus.Desc
 	jobCompleteDesc      *prometheus.Desc
 	jobErrorDesc         *prometheus.Desc
@@ -93,8 +95,9 @@ type Collector struct {
 
 // New creates a Collector. ping is called on every scrape to determine
 // itential_up; pass nil to disable the ping (up will always be 1).
-func New(ping func(context.Context) error, logger *slog.Logger) *Collector {
+func New(version string, ping func(context.Context) error, logger *slog.Logger) *Collector {
 	return &Collector{
+		version:           version,
 		ping:              ping,
 		logger:            logger,
 		taskStarts:        make(map[string]int64),
@@ -105,6 +108,11 @@ func New(ping func(context.Context) error, logger *slog.Logger) *Collector {
 		taskStatusCounts:  make(map[string]int64),
 		watcherReconnects: map[string]int64{"jobs": 0, "tasks": 0},
 		pollErrors:        map[string]int64{"jobs": 0, "tasks": 0},
+		buildInfoDesc: prometheus.NewDesc(
+			namespace+"_build_info",
+			"Build information about the exporter.",
+			[]string{"version"}, nil,
+		),
 		jobStartDesc: prometheus.NewDesc(
 			namespace+"_job_start",
 			"Number of jobs started (inserted) in the current collection window.",
@@ -290,6 +298,7 @@ func (c *Collector) RecordPollError(query string) {
 
 // Describe implements prometheus.Collector.
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- c.buildInfoDesc
 	ch <- c.jobStartDesc
 	ch <- c.jobCompleteDesc
 	ch <- c.jobErrorDesc
@@ -358,6 +367,7 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	c.mu.Unlock()
 
 	duration := time.Since(start).Seconds()
+	ch <- prometheus.MustNewConstMetric(c.buildInfoDesc, prometheus.GaugeValue, 1, c.version)
 	ch <- prometheus.MustNewConstMetric(c.upDesc, prometheus.GaugeValue, up)
 	ch <- prometheus.MustNewConstMetric(c.scrapeDurationDesc, prometheus.GaugeValue, duration)
 	for collection, count := range wr {
