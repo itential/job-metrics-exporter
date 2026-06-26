@@ -4,7 +4,7 @@
 
 `itential-job-metrics-exporter` is a Prometheus exporter for [Itential Automation Platform (IAP)](https://www.itential.com). It connects to a MongoDB replica set (the backing store for IAP's Workflow Engine), watches the `jobs` and `tasks` collections, and exposes job/task lifecycle and status count metrics via an HTTP or HTTPS endpoint scraped by Prometheus.
 
-The binary is a single statically-linked Go executable. It is distributed as a pre-built linux/amd64 and linux/arm64 binary and intended to run as a systemd service or in Kubernetes.
+The binary is a single statically-linked Go executable. It is distributed as a pre-built linux/amd64 and linux/arm64 binary and as a container image published to `ghcr.io/itential/job-metrics-exporter`. It is intended to run as a systemd service or in Kubernetes.
 
 ---
 
@@ -19,6 +19,7 @@ internal/queries/             MongoDB aggregation pipelines
 internal/watcher/             MongoDB change stream consumer
 .githooks/                    pre-commit and commit-msg hook scripts
 .github/workflows/            CI: release.yml, pr-compliance.yml
+Dockerfile                    Multi-stage container image build
 Makefile                      Build, test, lint, install targets
 config.example.yaml           Annotated reference config
 itential-job-metrics-exporter.service.sample  systemd unit template
@@ -200,6 +201,7 @@ Status values are dynamic — no config needed when new statuses appear.
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
+| `itential_build_info` | Gauge | `version` | Always 1. Version string injected at build time via `-ldflags` |
 | `itential_up` | Gauge | — | 1 = MongoDB reachable, 0 = ping failed |
 | `itential_scrape_duration_seconds` | Gauge | — | Full scrape duration including ping |
 | `itential_watcher_reconnects_total` | Counter | `collection` | Change stream reconnects per collection |
@@ -259,7 +261,7 @@ Install with `make hooks`. Two hooks are enforced:
 
 ### CI Pipeline
 
-`.github/workflows/release.yml` triggers on `v*` tags. It calls `make release-all` (linux only) and uploads the artifacts to a GitHub Release with auto-generated notes.
+`.github/workflows/release.yml` triggers on `v*` tags. It calls `make release-all` and uploads the artifacts to a GitHub Release with auto-generated notes. It also builds a multi-platform (`linux/amd64`, `linux/arm64`) container image and pushes it to `ghcr.io/itential/job-metrics-exporter` tagged with the version and `latest`.
 
 `.github/workflows/pr-compliance.yml` runs PR title/description checks.
 
@@ -314,3 +316,9 @@ Tests YAML loading, env var overlay precedence, and all validation error paths.
 - **Darwin binaries are not distributed.** `make release-all` only builds linux targets. Individual `release-darwin-*` targets exist for local development and are invoked manually. The CI pipeline does not produce darwin artifacts.
 
 - **The version string is injected at build time.** `main.version` defaults to `"dev"`. The Makefile sets it via `-ldflags "-X main.version=$(VERSION)"` where `VERSION` comes from `git describe --tags --always --dirty`. A `-dirty` suffix means there were uncommitted changes at build time.
+
+---
+
+## Documentation Sync
+
+When adding or modifying metrics, update both the Metrics Catalog in `CLAUDE.md` and the corresponding table in `README.md` — they are kept in sync manually.
