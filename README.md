@@ -86,6 +86,7 @@ These metrics are always emitted, starting at 0, regardless of which collection 
 
 | Metric | Type | Labels | Description |
 |---|---|---|---|
+| `itential_build_info` | Gauge | `version` | Always `1`. Exposes the exporter version string as a label |
 | `itential_up` | Gauge | — | `1` if the exporter can reach MongoDB, `0` if the ping fails |
 | `itential_scrape_duration_seconds` | Gauge | — | Duration of the last scrape in seconds, including the MongoDB ping |
 | `itential_watcher_reconnects_total` | Counter | `collection` | Change stream reconnects per collection (`jobs` / `tasks`) |
