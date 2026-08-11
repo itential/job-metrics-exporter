@@ -51,3 +51,13 @@ polling:
   enabled: false
   interval: "60s"
   query_timeout: "55s"   # must be less than interval
+
+# Index hints used by MongoDB aggregation queries.
+queries:
+  # Name of the index hinted by task status/server-grouped aggregations
+  # (TasksByStatus, TasksByServerID, TasksByActiveStatusAndServer,
+  # TasksByCompletedAndServer). Must cover {status:1, "metrics.server_id":1}.
+  # Defaults to the index name documented in README.md. Override this if your
+  # MongoDB deployment already has an equivalent index under a different name
+  # — this avoids forking the query code just to match a local index name.
+  task_status_index: "itential_job_metrics_exporter_task_status_server"
