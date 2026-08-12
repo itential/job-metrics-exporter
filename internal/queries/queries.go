@@ -71,7 +71,7 @@ func (r *Runner) JobsByStatus(ctx context.Context) ([]StatusCount, error) {
 }
 
 // TasksByStatus groups all tasks by status.
-// Index hint: r.taskStatusIndex (configurable; default itential_job_metrics_exporter_task_status_server) {status:1, metrics.server_id:1}
+// Index hint: r.taskStatusIndex (configurable; default iap_status_server_id) {status:1, metrics.server_id:1}
 // The leading status field covers the group-by as an index scan.
 // Expensive: scans the full tasks collection.
 // Use on a slow refresh interval.
@@ -92,7 +92,7 @@ func (r *Runner) TasksByStatus(ctx context.Context) ([]StatusCount, error) {
 }
 
 // TasksByServerID counts running tasks grouped by metrics.server_id.
-// Index hint: r.taskStatusIndex (configurable; default itential_job_metrics_exporter_task_status_server) {status:1, metrics.server_id:1}
+// Index hint: r.taskStatusIndex (configurable; default iap_status_server_id) {status:1, metrics.server_id:1}
 // The $match restricts the scan to running tasks only, so the index range is
 // bounded by the cardinality of running tasks rather than the full collection.
 // The StatusCount.Status field carries the server_id value.
@@ -114,7 +114,7 @@ func (r *Runner) TasksByServerID(ctx context.Context) ([]StatusCount, error) {
 
 // TasksByActiveStatusAndServer groups tasks with status "running" or "error"
 // by (status, metrics.server_id). Intended for frequent collection.
-// Index hint: r.taskStatusIndex (configurable; default itential_job_metrics_exporter_task_status_server) {status:1, metrics.server_id:1}
+// Index hint: r.taskStatusIndex (configurable; default iap_status_server_id) {status:1, metrics.server_id:1}
 // The $match bounds the scan to active tasks only, so the index range is
 // O(running+error tasks) rather than O(all tasks).
 // Cheap enough for frequent refresh: bounded to active tasks only.
@@ -141,7 +141,7 @@ func (r *Runner) TasksByActiveStatusAndServer(ctx context.Context) ([]StatusServ
 // TasksByCompletedAndServer groups completed tasks by metrics.server_id.
 // Intended for infrequent collection (slow_cache_ttl) because completed
 // tasks dominate the collection and make the scan O(all tasks).
-// Index hint: r.taskStatusIndex (configurable; default itential_job_metrics_exporter_task_status_server) {status:1, metrics.server_id:1}
+// Index hint: r.taskStatusIndex (configurable; default iap_status_server_id) {status:1, metrics.server_id:1}
 func (r *Runner) TasksByCompletedAndServer(ctx context.Context) ([]StatusServerCount, error) {
 	pipeline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.D{{Key: "status", Value: "complete"}}}},

@@ -157,7 +157,7 @@ func defaults() *Config {
 			QueryTimeout: 55 * time.Second,
 		},
 		Queries: QueriesConfig{
-			TaskStatusIndex: "itential_job_metrics_exporter_task_status_server",
+			TaskStatusIndex: "iap_status_server_id",
 		},
 	}
 }

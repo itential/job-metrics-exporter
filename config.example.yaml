@@ -60,4 +60,4 @@ queries:
   # Defaults to the index name documented in README.md. Override this if your
   # MongoDB deployment already has an equivalent index under a different name
   # — this avoids forking the query code just to match a local index name.
-  task_status_index: "itential_job_metrics_exporter_task_status_server"
+  task_status_index: "iap_status_server_id"

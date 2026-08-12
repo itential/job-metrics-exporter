@@ -163,7 +163,7 @@ Self-contained MongoDB aggregation pipelines on a `Runner`. Every query:
 
 Queries used by the exporter:
 - `JobsByStatus` — groups all jobs by status; index: `itential_status {status:1, _id:1}`
-- `TasksByStatus` — groups all tasks by status; index: `itential_job_metrics_exporter_task_status_server {status:1, metrics.server_id:1}`
+- `TasksByStatus` — groups all tasks by status; index: `iap_status_server_id {status:1, metrics.server_id:1}`
 
 Other queries exist in the file (`TasksByServerID`, `TasksByActiveStatusAndServer`, `TasksByCompletedAndServer`) but are not currently called from `main.go`.
 

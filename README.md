@@ -135,7 +135,7 @@ The background polling queries (and change stream bootstrap) require the followi
 | Query | Collection | Index Name | Index Keys |
 |---|---|---|---|
 | `JobsByStatus` | `jobs` | `itential_status` | `{status: 1, _id: 1}` |
-| `TasksByStatus` | `tasks` | `itential_job_metrics_exporter_task_status_server` | `{status: 1, metrics.server_id: 1}` |
+| `TasksByStatus` | `tasks` | `iap_status_server_id` | `{status: 1, metrics.server_id: 1}` |
 
 All aggregations set an explicit index hint and will return an error rather than fall back to a collection scan if the expected index is missing.
 
@@ -153,7 +153,7 @@ db.jobs.createIndex(
 // tasks collection — used by all task status, per-server, and duration queries
 db.tasks.createIndex(
   { status: 1, "metrics.server_id": 1 },
-  { name: "itential_job_metrics_exporter_task_status_server", background: true }
+  { name: "iap_status_server_id", background: true }
 )
 ```
 
