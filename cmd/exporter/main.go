@@ -90,7 +90,7 @@ func main() {
 		// Bootstrap: run JobsByStatus + TasksByStatus once to seed the initial
 		// gauge values before the change stream opens. The change stream then
 		// maintains those counts via ±1 deltas — no recurring full scans needed.
-		runner := queries.NewRunner(db)
+		runner := queries.NewRunner(db, cfg.Queries.TaskStatusIndex)
 		logger.Info("bootstrapping status gauges (one-time poll)")
 		bootstrapCtx, bootstrapCancel := context.WithTimeout(ctx, cfg.Exporter.SlowQueryTimeout)
 		pollOnce(bootstrapCtx, runner, coll, cfg.Exporter.SlowQueryTimeout, logger)
@@ -100,7 +100,7 @@ func main() {
 		go w.Start(ctx)
 	} else if cfg.Polling.Enabled {
 		// Change stream is off: fall back to periodic polling for status gauges.
-		runner := queries.NewRunner(db)
+		runner := queries.NewRunner(db, cfg.Queries.TaskStatusIndex)
 		logger.Info("starting background poller",
 			"interval", cfg.Polling.Interval,
 			"query_timeout", cfg.Polling.QueryTimeout,

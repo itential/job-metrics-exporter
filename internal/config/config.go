@@ -17,6 +17,18 @@ type Config struct {
 	Log          LogConfig          `yaml:"log"`
 	ChangeStream ChangeStreamConfig `yaml:"change_stream"`
 	Polling      PollingConfig      `yaml:"polling"`
+	Queries      QueriesConfig      `yaml:"queries"`
+}
+
+// QueriesConfig controls the index hints used by MongoDB aggregation queries.
+type QueriesConfig struct {
+	// TaskStatusIndex is the name of the index used to hint task status/server
+	// aggregations (TasksByStatus, TasksByServerID, TasksByActiveStatusAndServer,
+	// TasksByCompletedAndServer). The index must cover
+	// {status:1, "metrics.server_id":1}. Override this if your MongoDB
+	// deployment already has an equivalent index under a different name,
+	// rather than forking the query code.
+	TaskStatusIndex string `yaml:"task_status_index"`
 }
 
 // PollingConfig controls the background query-based metric collection.
@@ -144,6 +156,9 @@ func defaults() *Config {
 			Interval:     60 * time.Second,
 			QueryTimeout: 55 * time.Second,
 		},
+		Queries: QueriesConfig{
+			TaskStatusIndex: "iap_status_server_id",
+		},
 	}
 }
 
@@ -179,6 +194,7 @@ func defaults() *Config {
 //	ITENTIAL_JOB_METRIC_CHANGE_STREAM_ENABLED           Enable MongoDB change stream watcher (true/false)
 //	ITENTIAL_JOB_METRIC_CHANGE_STREAM_INITIAL_LOAD      Load active doc states on startup (true/false)
 //	ITENTIAL_JOB_METRIC_CHANGE_STREAM_INITIAL_LOAD_TIMEOUT  Deadline for the initial load queries (e.g. 2m)
+//	ITENTIAL_JOB_METRIC_TASK_STATUS_INDEX                Name of the index hinted by task status/server queries
 func applyEnv(cfg *Config) {
 	setStr := func(dst *string, key string) {
 		if v := os.Getenv(key); v != "" {
@@ -229,6 +245,7 @@ func applyEnv(cfg *Config) {
 	setBool(&cfg.Polling.Enabled, "ITENTIAL_JOB_METRIC_POLLING_ENABLED")
 	setDur(&cfg.Polling.Interval, "ITENTIAL_JOB_METRIC_POLLING_INTERVAL")
 	setDur(&cfg.Polling.QueryTimeout, "ITENTIAL_JOB_METRIC_POLLING_QUERY_TIMEOUT")
+	setStr(&cfg.Queries.TaskStatusIndex, "ITENTIAL_JOB_METRIC_TASK_STATUS_INDEX")
 }
 
 func validate(cfg *Config) error {
