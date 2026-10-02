@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
-A [Prometheus](https://prometheus.io) exporter for [Itential Automation Platform (IAP)](https://www.itential.com) Workflow Engine metrics. It connects to a MongoDB replica set, tracks job and task lifecycle events via MongoDB change streams, and optionally runs background aggregation queries to produce status count snapshots — all exposed via an HTTP or HTTPS endpoint.
+A [Prometheus](https://prometheus.io) exporter for [Itential Platform](https://www.itential.com) Workflow Engine metrics. It connects to a MongoDB replica set, tracks job and task lifecycle events via MongoDB change streams, and optionally runs background aggregation queries to produce status count snapshots — all exposed via an HTTP or HTTPS endpoint.
 
 ---
 
